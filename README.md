@@ -79,4 +79,38 @@ Now we can refer to this expression inside our TaintTracking configuration as fo
 And now we can clearly identify our five sinks.
 
 ![](img/1.2.PNG)
+## Step 1.3: Our taint tracking configuration
+Let's put together our first attempt at taint tracking:
+```
+/*
+* TitusTTConf - TaintTracking Configuration for EL injection in Titus
+* Source: ConstraintValidator.isValid(*,)
+* Sink: ConstraintValidatorContext.buildConstraintViolationWithTemplate(*,)
+*/
+class TitusTTConf extends TaintTracking::Configuration {
+    TitusTTConf() { this = "TitusTTConf" }
+
+    override predicate isSource(DataFlow::Node source) { 
+        exists( ConstraintValidatorIsValid c |
+        //I was aware of the class RemoteFlowSource but the following line didn't work as expected
+            //source instanceof RemoteFlowSource and
+            source.asParameter() = c.getParameter(0) 
+        ) 
+    }
+
+    override predicate isSink(DataFlow::Node sink) { 
+        exists( Expr arg |
+            isBuildConstraintViolationWithTemplate(arg)
+            and sink.asExpr() = arg 
+        ) 
+    }
+}
+
+
+from TitusTTConf cfg, DataFlow::PathNode source, DataFlow::PathNode sink
+where cfg.hasFlowPath(source, sink)
+select sink, source, sink, "Custom constraint error message contains unsanitized user data"
+
+```
+
 
