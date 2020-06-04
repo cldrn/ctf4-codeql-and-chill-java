@@ -52,6 +52,7 @@ After modeling our method in QL, we use that class to set the first parameter as
 ```
 After this, we get our 6 results as expected!
 
+![](img/1.1.PNG)
 ## Step 1.2: Setting up our sinks
 It is time to set up our sinks as the first argument of method calls to `buildConstraintViolationWithTemplate`:
 ```java
@@ -77,4 +78,5 @@ Now we can refer to this expression inside our TaintTracking configuration as fo
 ```
 And now we can clearly identify our five sinks.
 
+![](img/1.2.PNG)
 
