@@ -113,7 +113,7 @@ select sink, source, sink, "Custom constraint error message contains unsanitized
 
 ```
 ## Step 1.4: Partial flowing
-For this step, we need to use partial flows to detect where the flows stops being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :)
+For this step, we need to use partial flows to detect where the flows stops being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods.
 
 To constrain all the possible sources, we could filter by file name:
 ```
@@ -165,4 +165,22 @@ Now, we can focus on specific flows that we are tracking. The arguments of type 
 
 ## Step 1.5: Missing taint steps
 Tracking the vulnerability allows us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
+
+## Step 1.6: Additional taint steps
+
+## Step 1.7: Adding constructors to taint tracking flows
+
+## Step 1.8: Finish line
+![](img/1.8.PNG)
+
+# Step 2: Another issue
+![](img/2.PNG)
+
+# Step 3: Errors and exceptions
+![](img/3.PNG)
+
+# Step 4: Exploit and remediation
+## Step 4.1:
+## Step 4.2:
+
 
