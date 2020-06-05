@@ -162,3 +162,7 @@ select sink, source, sink, "Partial flow from unsanitized user data:"
 ```
 Now, we can focus on specific flows that we are tracking. The arguments of type Container look interesting:
 ![](img/1.4.PNG)
+
+## Step 1.5: Missing taint steps
+Tracking the vulnerability allows us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
+
