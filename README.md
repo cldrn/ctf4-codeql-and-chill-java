@@ -164,7 +164,7 @@ Now, we can focus on specific flows that we are tracking. The arguments of type 
 ![](img/1.4.PNG)
 
 ## Step 1.5: Missing taint steps
-Tracking the vulnerability allows us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
+Tracking the vulnerability allow us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
 
 ## Step 1.6: Additional taint steps
 Now we define an additional taint tracking step that defines a new flow through these functions to be placed right before the HashSet constructor call. We define a class and a predicate to be called from the step call:
@@ -184,14 +184,33 @@ predicate expressionCompileStep(DataFlow::Node node1, DataFlow::Node node2) {
     )
 }
 ```
-And we override the method to add our new additional step:
+We extend the TaintTracking::AdditionalTaintStep class as follows:
 ```
-   override predicate isAdditionalTaintStep(DataFlow::Node node1, DataFlow::Node node2) {
-        expressionCompileStep(node1, node2)
+class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
+    override predicate step(DataFlow::Node node1, DataFlow::Node node2) {
+        expressionCompileStep(node1, node2) 
     }
+}
 ```
-## Step 1.7: Adding constructors to taint tracking flows
-
+## Step 1.7: Adding taint steps through constructors
+To add the step through the constructor of HashSet we need to define another predicate:
+```
+predicate hashSetMethodStep(DataFlow::Node node1, DataFlow::Node node2) {
+    exists(ConstructorCall cc | cc.getConstructedType() instanceof TypeHashtable |
+        node1.asExpr() = cc.getAnArgument() and
+        (node2.asExpr() = cc or node2.asExpr() = cc.getQualifier())
+    )
+}
+```
+And update our step call:
+```
+class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
+    override predicate step(DataFlow::Node node1, DataFlow::Node node2) {
+        expressionCompileStep(node1, node2) or
+        hashSetMethodStep(node1, node2)
+  }
+}
+```
 ## Step 1.8: Finish line
 ![](img/1.8.PNG)
 
