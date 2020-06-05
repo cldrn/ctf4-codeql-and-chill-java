@@ -195,6 +195,17 @@ class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
 ## Step 1.7: Adding taint steps through constructors
 To add the step through the constructor of HashSet we need to define another predicate:
 ```
+/*
+* HashSet constructor classes
+*/
+class TypeHashtable extends RefType {
+TypeHashtable() { 
+    hasQualifiedName("java.util", "HashSet") or
+    hasQualifiedName("java.util", "HashSet<>") or
+    hasQualifiedName("java.util", "HashSet<String>") 
+    }
+}
+
 predicate hashSetMethodStep(DataFlow::Node node1, DataFlow::Node node2) {
     exists(ConstructorCall cc | cc.getConstructedType() instanceof TypeHashtable |
         node1.asExpr() = cc.getAnArgument() and
@@ -212,9 +223,26 @@ class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
 }
 ```
 ## Step 1.8: Finish line
+After adding the missing taint steps, we can run the query again and we get our first result.
 ![](img/1.8.PNG)
 
 # Step 2: Another issue
+After debuging the flow track in `SchedulingConstraintSetValidator` we can update our previously defined class.
+```
+/*
+* The names of funtions that we want to allow taint tracking flow
+*/
+class FlowConstraints extends Method {
+    FlowConstraints() {
+        this.hasName("getSoftConstraints")
+        or this.hasName("getHardConstraints")
+        or this.hasName("keySet") 
+        or this.hasName("stream")
+        or this.hasName("map")
+        or this.hasName("collect")
+    }
+}
+```
 ![](img/2.PNG)
 
 # Step 3: Errors and exceptions
