@@ -112,5 +112,53 @@ where cfg.hasFlowPath(source, sink)
 select sink, source, sink, "Custom constraint error message contains unsanitized user data"
 
 ```
+## Step 1.4: Partial flowing
+For this step, we need to use partial flows to detect where the flows stops being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :)
 
+To constrain all the possible sources, we could filter by file name:
+```
+source.getNode().getEnclosingCallable().getFile().toString() = "SchedulingConstraintValidator"
+```
+Or maybe by the type of parameter:
+```
+source.getNode().getEnclosingCallable().getParameterType(0) instanceof ContainerClass 
+```
+And there are many other possibilities available. We will use `DataFlow::PartialPathNode` for this part. Putting everything together we have the following query:
+```
+/*
+* Holds for classes named Container
+*/
+class ContainerClass extends Class {
+    ContainerClass() {
+        this.getName() = "Container"
+    }
+}
 
+class TitusTTConfig extends TaintTracking::Configuration {
+    TitusTTConfig() { this = "TitusTTConfig" }
+
+    override predicate isSource(DataFlow::Node source) { 
+        exists( ConstraintValidatorIsValid c |
+            source.asParameter() = c.getParameter(0)
+        )
+    }
+
+    override predicate isSink(DataFlow::Node sink) { 
+        exists( Expr arg |
+            isBuildConstraintViolationWithTemplate(arg) and
+            sink.asExpr() = arg 
+        ) 
+    }    
+    override int explorationLimit() { result =  10} 
+}
+
+from TitusTTConfig cfg, DataFlow::PartialPathNode source, DataFlow::PartialPathNode sink, int dist
+where 
+cfg.hasPartialFlow(source, sink, dist)
+//and source.getNode().getEnclosingCallable().getFile().toString() = "SchedulingConstraintValidator" //By filename
+and source.getNode().getEnclosingCallable().getParameterType(0) instanceof ContainerClass //By type
+
+select sink, source, sink, "Partial flow from unsanitized user data:"
+```
+Now, we can focus on specific flows that we are tracking. The arguments of type Container look interesting:
+![](img/1.4.PNG)
