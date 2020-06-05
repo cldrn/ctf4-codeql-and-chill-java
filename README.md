@@ -167,7 +167,29 @@ Now, we can focus on specific flows that we are tracking. The arguments of type 
 Tracking the vulnerability allows us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
 
 ## Step 1.6: Additional taint steps
-
+Now we define an additional taint tracking step that defines a new flow through these functions to be placed right before the HashSet constructor call. We define a class and a predicate to be called from the step call:
+```
+class FlowConstraints extends Method {
+    FlowConstraints() {
+        this.hasName("getSoftConstraints")
+        or this.hasName("getHardConstraints")
+        or this.hasName("keySet")
+    }
+}
+predicate expressionCompileStep(DataFlow::Node node1, DataFlow::Node node2) {
+    exists(MethodAccess ma, Method m | ma.getMethod() = m |
+        m instanceof FlowConstraints and
+        ma = node2.asExpr() and
+        ma.getQualifier() = node1.asExpr()
+    )
+}
+```
+And we override the method to add our new additional step:
+```
+   override predicate isAdditionalTaintStep(DataFlow::Node node1, DataFlow::Node node2) {
+        expressionCompileStep(node1, node2)
+    }
+```
 ## Step 1.7: Adding constructors to taint tracking flows
 
 ## Step 1.8: Finish line
