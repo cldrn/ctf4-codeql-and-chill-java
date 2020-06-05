@@ -246,7 +246,26 @@ class FlowConstraints extends Method {
 ![](img/2.PNG)
 
 # Step 3: Errors and exceptions
-![](img/3.PNG)
+
+```
+import java
+ 
+private predicate catchTypeNames(string typeName) {
+  typeName = "Throwable" or typeName = "Exception"
+}
+
+from Method m, MethodAccess ma, CatchClause cc, LocalVariableDeclExpr v, TryStmt t, string typeName
+where
+  catchTypeNames(typeName)
+  and t.getACatchClause() = cc
+  and cc.getVariable() = v
+  and v.getType().(RefType).hasQualifiedName("java.lang", typeName)
+  and exists(v.getAnAccess())
+  and ma.getMethod() = m
+  and ma.getAnArgument().getType() = cc.getVariable().getType()
+select cc.getVariable().getType(), ma
+```
+![](img/3-1.PNG)
 
 # Step 4: Exploit and remediation
 ## Step 4.1:
