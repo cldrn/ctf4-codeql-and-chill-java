@@ -246,7 +246,15 @@ class FlowConstraints extends Method {
 ![](img/2.PNG)
 
 # Step 3: Errors and exceptions
-
+For step 3, we need to update our query to include the case where the sink is called from within a catch statement:
+```java
+try {
+    parse(tainted);
+} catch (Exception e) {
+    sink(e.getMessage())
+}
+```
+For this step, we are  interested on the method calls done inside catch statements that use the Exception/Throwable argument used. Since this specific use case is not in the source code, I will write a standalone query that will turn into a predicate for the step() call next. The following query detects method access where the variable passed to the `catch` statement is accessed by a function.
 ```
 import java
  
@@ -269,6 +277,8 @@ select cc.getVariable().getType(), ma
 
 # Step 4: Exploit and remediation
 ## Step 4.1:
+### Running Netflix Titus
+Running the vulnerable version of Netflix Titus was easy as they provide Docker images. 
 ## Step 4.2:
 
 
