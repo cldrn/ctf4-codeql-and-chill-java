@@ -53,6 +53,7 @@ After modeling our method in QL, we use that class to set the first parameter as
 After this, we get our 6 results as expected!
 
 ![](img/1.1.PNG)
+
 ## Step 1.2: Setting up our sinks
 It is time to set up our sinks as the first argument of method calls to `buildConstraintViolationWithTemplate`:
 ```java
@@ -79,6 +80,7 @@ Now we can refer to this expression inside our TaintTracking configuration as fo
 And now we can clearly identify our five sinks.
 
 ![](img/1.2.PNG)
+
 ## Step 1.3: Our taint tracking configuration
 Let's put together our first attempt at taint tracking:
 ```
@@ -161,6 +163,7 @@ and source.getNode().getEnclosingCallable().getParameterType(0) instanceof Conta
 select sink, source, sink, "Partial flow from unsanitized user data:"
 ```
 Now, we can focus on specific flows that we are tracking. The arguments of type Container look interesting:
+
 ![](img/1.4.PNG)
 
 ## Step 1.5: Missing taint steps
@@ -168,6 +171,7 @@ Tracking the vulnerability allow us to see where the flow is stopping. My guess 
 
 ## Step 1.6: Additional taint steps
 Now we define an additional taint tracking step that defines a new flow through these functions to be placed right before the HashSet constructor call. We define a class and a predicate to be called from the step call:
+
 ```
 class FlowConstraints extends Method {
     FlowConstraints() {
@@ -184,7 +188,9 @@ predicate expressionCompileStep(DataFlow::Node node1, DataFlow::Node node2) {
     )
 }
 ```
+
 We extend the TaintTracking::AdditionalTaintStep class as follows:
+
 ```
 class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
     override predicate step(DataFlow::Node node1, DataFlow::Node node2) {
@@ -194,6 +200,7 @@ class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
 ```
 ## Step 1.7: Adding taint steps through constructors
 To add the step through the constructor of HashSet we need to define another predicate:
+
 ```
 /*
 * HashSet constructor classes
@@ -222,8 +229,10 @@ class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
   }
 }
 ```
+
 ## Step 1.8: Finish line
 After adding the missing taint steps, we can run the query again and we get our first result.
+
 ![](img/1.8.PNG)
 
 # Step 2: Another issue
@@ -243,13 +252,69 @@ class FlowConstraints extends Method {
     }
 }
 ```
+
 ![](img/2.PNG)
 
 # Step 3: Errors and exceptions
-![](img/3.PNG)
+For step 3, we need to update our query to include the case where the sink is called from within a catch statement:
+```java
+try {
+    parse(tainted);
+} catch (Exception e) {
+    sink(e.getMessage())
+}
+```
+
+For this step, we are  interested on the method calls done inside catch statements that use the Exception/Throwable argument in the catch clause. Since this specific use case is not in the source code, I wrote a standalone query that I can turn into a predicate for the step() call when ready. The following query detects method access where the variable passed to the `catch` statement is accessed by a function.
+
+```
+import java
+ 
+private predicate catchTypeNames(string typeName) {
+  typeName = "Throwable" or typeName = "Exception"
+}
+
+from Method m, MethodAccess ma, CatchClause cc, LocalVariableDeclExpr v, TryStmt t, string typeName
+where
+  catchTypeNames(typeName)
+  and t.getACatchClause() = cc
+  and cc.getVariable() = v
+  and v.getType().(RefType).hasQualifiedName("java.lang", typeName)
+  and exists(v.getAnAccess())
+  and ma.getMethod() = m
+  and ma.getAnArgument().getType() = cc.getVariable().getType()
+select cc.getVariable().getType(), ma
+```
+
+![](img/3-1.PNG)
+
+Now we can write some simple heuristic to detect calls to our desired sinks. One way to achieve this is filtering by name with the following query:
+```
+predicate catchStep(DataFlow::Node node1, DataFlow::Node node2) {
+    exists(Method m, MethodAccess ma, CatchClause cc, LocalVariableDeclExpr v, TryStmt t, string typeName, Expr arg|
+    catchTypeNames(typeName) and
+    t.getACatchClause() = cc and 
+    cc.getVariable() = v and
+    v.getType().(RefType).hasQualifiedName("java.lang", typeName) and
+    exists(
+      v.getAnAccess() 
+    ) 
+    and ma.getMethod() = m
+    and ma.getAnArgument().getType() = cc.getVariable().getType() 
+    and m.getName() = "buildConstraintViolationWithTemplate"
+    and node2.asExpr() = ma
+    and node1.asExpr() = ma.getQualifier()
+    )
+}
+```
+Since the vulnerable pattern is not in our code base, we can test our new step() by changing to the name of the function(s) for some other existing call such as `failed(...)`.
+
+![](img/3-2.PNG)
 
 # Step 4: Exploit and remediation
 ## Step 4.1:
+### Running Netflix Titus
+Running the vulnerable version of Netflix Titus was easy as they provide Docker images. 
 ## Step 4.2:
 
 
