@@ -252,6 +252,7 @@ class FlowConstraints extends Method {
     }
 }
 ```
+Running the query again will return us the result we were missing!
 
 ![](img/2.PNG)
 
