@@ -288,17 +288,18 @@ select cc.getVariable().getType(), ma
 
 ![](img/3-1.PNG)
 
-Now we can write some simple heuristic to detect calls to our desired sinks. One way to achieve this is filtering by name with the following query:
+Now that I know that I'm selecting what I'm looking for, I can rewrite the query as a predicate and add some simple heuristic to detect calls to our desired sinks. One way to achieve this is filtering by name, let's look for `buildConstraintViolationWithTemplate` with the following query:
 ```
+private predicate catchTypeNames(string typeName) {
+  typeName = "Throwable" or typeName = "Exception"
+}
 predicate catchStep(DataFlow::Node node1, DataFlow::Node node2) {
     exists(Method m, MethodAccess ma, CatchClause cc, LocalVariableDeclExpr v, TryStmt t, string typeName, Expr arg|
-    catchTypeNames(typeName) and
-    t.getACatchClause() = cc and 
-    cc.getVariable() = v and
-    v.getType().(RefType).hasQualifiedName("java.lang", typeName) and
-    exists(
-      v.getAnAccess() 
-    ) 
+    catchTypeNames(typeName)
+    and t.getACatchClause() = cc 
+    and cc.getVariable() = v
+    and v.getType().(RefType).hasQualifiedName("java.lang", typeName)
+    and exists(v.getAnAccess()) 
     and ma.getMethod() = m
     and ma.getAnArgument().getType() = cc.getVariable().getType() 
     and m.getName() = "buildConstraintViolationWithTemplate"
@@ -310,6 +311,18 @@ predicate catchStep(DataFlow::Node node1, DataFlow::Node node2) {
 Since the vulnerable pattern is not in our code base, we can test our new step() by changing to the name of the function(s) for some other existing call such as `failed(...)`.
 
 ![](img/3-2.PNG)
+
+At the end, our final predicate for `isAdditionalTaintStep` is:
+```
+   override predicate isAdditionalTaintStep(DataFlow::Node node1,
+                                           DataFlow::Node node2) {
+
+        expressionCompilerCompileStep(node1, node2)
+        or hashSetMethodStep(node1, node2)
+        or catchStep(node1, node2)
+    }
+```
+Excellent, we have located the two vulnerable injection points and our query is robust enough to detect some edge cases. It is time to move to the exploitation part.
 
 # Step 4: Exploit and remediation
 ## Step 4.1:
