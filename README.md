@@ -236,7 +236,7 @@ After adding the missing taint steps, we can run the query again and we get our 
 ![](img/1.8.PNG)
 
 # Step 2: Another issue
-After debuging the flow track in `SchedulingConstraintSetValidator` we can update our previously defined class.
+To avoid code repetition, I will update our existing class `FlowConstraints`. After debuging the flow track in `SchedulingConstraintSetValidator` we can update our previously defined class with the missing methods.
 ```
 /*
 * The names of funtions that we want to allow taint tracking flow
