@@ -1,7 +1,7 @@
 # ctf4-codeql-and-chill-java
 GitHub Security Lab CTF 4: CodeQL and Chill - The Java Edition:
 1. [Intro](##tainttracking-configuration-for-netflix-titus)
-2. [Step 1.1: Setting up our sources](##step-11-setting-up-our-sources)
+2. [Step 1.1: Setting up our sources](#step-11-setting-up-our-sources)
 
 ## TaintTracking Configuration for Netflix Titus
 I've been wanting to look into the power of TaintTracking in CodeQL for some time and this CTF is perfect for learning and practicing against a real life target. The challenge takes you from setting up flow paths to fully customizing them when tracking the vulnerabilities and puts the cherry on top with an interesting Java EL injection.
