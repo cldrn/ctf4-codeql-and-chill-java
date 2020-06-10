@@ -443,4 +443,4 @@ where
   and ma.getArgument(0).getType().getName() = "SpELMessageInterpolator"
 select m, ma, ma.getArgument(0), ma.getArgument(0).getType(), ma.getEnclosingCallable()
 ```
-![](img/4-2.PNG)
+![](img/4.2.PNG)
