@@ -40,7 +40,7 @@ class ConstraintValidatorIsValid extends Method {
     }
 }
 ```
-After modeling our method in QL, we use that class to set the first parameter as the source:
+We use our new QL class to set the first parameter as the source:
 ```java
     override predicate isSource(DataFlow::Node source) { 
         exists( ConstraintValidatorIsValid c |
@@ -50,12 +50,12 @@ After modeling our method in QL, we use that class to set the first parameter as
         ) 
     }
 ```
-After this, we get our 6 results as expected!
+And we get our 6 results as expected!
 
 ![](img/1.1.PNG)
 
 ## Step 1.2: Setting up our sinks
-It is time to set up our sinks as the first argument of method calls to `buildConstraintViolationWithTemplate`:
+It is time to configure our sinks as the first argument of method calls to `buildConstraintViolationWithTemplate`:
 ```java
 /*
 * isBuildConstraintViolationWithTemplate
@@ -68,7 +68,7 @@ predicate isBuildConstraintViolationWithTemplate(Expr arg) {
     )
 }
 ```
-Now we can refer to this expression inside our TaintTracking configuration as follows:
+We will use this expression inside our TaintTracking configuration as follows:
 ```java
     override predicate isSink(DataFlow::Node sink) { 
         exists( Expr arg |
@@ -118,9 +118,9 @@ select sink, source, sink, "Custom constraint error message contains unsanitized
 Unfortunately, this was not enough to catch our vulnerabilities. Let's keep trying.
 
 ## Step 1.4: Partial flowing
-For this step, we need to use partial flows to detect where the flows stops being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods.
+For this step, we need to use partial flows to detect where the flows stop being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods.
 
-To constrain all the possible sources, we could filter by file name:
+To constrain all the possible sources, we could filter by file name. However, keep in mind that `toString()` calls are not suitable for production code in QL:
 ```
 source.getNode().getEnclosingCallable().getFile().toString() = "SchedulingConstraintValidator"
 ```
@@ -128,7 +128,7 @@ Or maybe by the type of parameter:
 ```
 source.getNode().getEnclosingCallable().getParameterType(0) instanceof ContainerClass 
 ```
-And there are many other possibilities available. We will use `DataFlow::PartialPathNode` for this part. Putting everything together we have the following query:
+And there are many other possibilities available. We will use `DataFlow::PartialPathNode` for this part. Putting everything together gives us the following query:
 ```
 /*
 * Holds for classes named Container
@@ -165,15 +165,15 @@ and source.getNode().getEnclosingCallable().getParameterType(0) instanceof Conta
 
 select sink, source, sink, "Partial flow from unsanitized user data:"
 ```
-Now, we can focus on specific flows that we are tracking. The arguments of type Container look interesting:
+Now, we can focus on the specific flows that we are tracking. Note how the argument of type Container looks interesting:
 
 ![](img/1.4.PNG)
 
 ## Step 1.5: Missing taint steps
-Tracking the vulnerability allow us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources.
+Tracking the vulnerability allow us to see where the flow is stopping. My guess is that getters/setters methods will often overwrite the tainted data, and leaving it unconstrained could also return a very large number of results. I found out about this when a poorly written query consumed all my RAM :). We need to limit the number of sources when analyzing partial flows.
 
 ## Step 1.6: Additional taint steps
-Now we define an additional taint tracking step that defines a new flow through these functions to be placed right before the HashSet constructor call. We define a class and a predicate to be called from the step call:
+For this we write an additional taint tracking step that defines a new flow through these functions and it stops right before the HashSet constructor call. We define a class and a predicate to be called from the step call:
 
 ```
 class FlowConstraints extends Method {
@@ -192,7 +192,7 @@ predicate expressionCompileStep(DataFlow::Node node1, DataFlow::Node node2) {
 }
 ```
 
-We extend the TaintTracking::AdditionalTaintStep class as follows:
+And we extend the TaintTracking::AdditionalTaintStep class as follows:
 
 ```
 class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
@@ -216,6 +216,9 @@ TypeHashtable() {
     }
 }
 
+/*
+* HashSet constructor call step
+*/
 predicate hashSetMethodStep(DataFlow::Node node1, DataFlow::Node node2) {
     exists(ConstructorCall cc | cc.getConstructedType() instanceof TypeHashtable |
         node1.asExpr() = cc.getAnArgument() and
@@ -223,7 +226,7 @@ predicate hashSetMethodStep(DataFlow::Node node1, DataFlow::Node node2) {
     )
 }
 ```
-And update our step call:
+And add a call to this new predicate in our step call:
 ```
 class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
     override predicate step(DataFlow::Node node1, DataFlow::Node node2) {
@@ -234,12 +237,12 @@ class NetflixTitusSteps extends TaintTracking::AdditionalTaintStep {
 ```
 
 ## Step 1.8: Finish line
-After adding the missing taint steps, we can run the query again and we get our first result.
+After adding the missing taint steps, we can run the query again and we get our first vulnerable injection point!
 
 ![](img/1.8.PNG)
 
 # Step 2: Another issue
-To avoid code repetition, I will update our existing class `FlowConstraints`. After debuging the flow track in `SchedulingConstraintSetValidator` we can update our previously defined class with the missing methods.
+To avoid code repetition, I updated our existing class `FlowConstraints` for the missing taint tracking steps. After debuging the flow track in `SchedulingConstraintSetValidator`, we can update our previously defined class with the missing methods (`stream`, `map`, `collect`).
 ```
 /*
 * The names of funtions that we want to allow taint tracking flow
@@ -255,7 +258,7 @@ class FlowConstraints extends Method {
     }
 }
 ```
-Running the query again will return us the result we were missing!
+Running the query again will return us the result we were missing. We have found the two vulnerabilities!
 
 ![](img/2.PNG)
 
@@ -269,7 +272,7 @@ try {
 }
 ```
 
-For this step, we are  interested on the method calls done inside catch statements that use the Exception/Throwable argument in the catch clause. Since this specific use case is not in the source code, I wrote a standalone query that I can turn into a predicate for the step() call when ready. The following query detects method access where the variable passed to the `catch` statement is accessed by a function.
+Remember we are  interested on the method calls done inside catch statements that use the Exception/Throwable argument in the catch clause. Since this specific use case is not in the source code, I wrote a standalone query that I can turn into a predicate for the step() call when ready. The following query detects method access where the variable passed to the `catch` statement is accessed by a function.
 
 ```
 import java
@@ -292,7 +295,7 @@ select cc.getVariable().getType(), ma
 
 ![](img/3-1.PNG)
 
-Now that I know that I'm selecting what I'm looking for, I can rewrite the query as a predicate and add some simple heuristic to detect calls to our desired sinks. One way to achieve this is filtering by name, let's look for `buildConstraintViolationWithTemplate` with the following query:
+Now that I know that I'm selecting what I'm looking for, I can re-write the query as a predicate and add some simple heuristic to detect calls to our desired sinks. One way to achieve this is filtering by name, let's look for `buildConstraintViolationWithTemplate` with the following query:
 ```
 private predicate catchTypeNames(string typeName) {
   typeName = "Throwable" or typeName = "Exception"
@@ -395,7 +398,7 @@ This failed but gave me confirmation that we are hitting the right sink as I now
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [${9*9}]', type: 'HARD''}"}
 ```
-After trying the most common Java EL injection vectors such as `${}`, we find one that gets our code interpreted!
+After trying the most common Java EL injection vectors such as `${}`, `%()`..., we find one that gets our code interpreted!
 ```
 {
     "applicationName": "localtest",
@@ -414,7 +417,7 @@ After trying the most common Java EL injection vectors such as `${}`, we find on
     }
   }
 ```
-`CTF-AND-CHILL-4` is there!
+The response clearly shows that `CTF-AND-CHILL-4` is there!
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [CTF-AND-CHILL-4]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}, {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}"}
 ```
