@@ -1,12 +1,26 @@
 # ctf4-codeql-and-chill-java
-GitHub Security Lab CTF 4: CodeQL and Chill - The Java Edition
+GitHub Security Lab CTF 4: CodeQL and Chill - The Java Edition:
+* [Intro](#tainttracking-configuration-for-netflix-titus)
+* [Step 1.1: Setting up our sources](#step-11-setting-up-our-sources)
+* [Step 1.2: Setting up our sinks](#step-12-setting-up-our-sinks)
+* [Step 1.3: Our taint tracking configuration](#step-13-our-taint-tracking-configuration)
+* [Step 1.4: Partial Flowing](#step-14-partial-flowing)
+* [Step 1.5: Missing taint steps](#step-15-missing-taint-steps)
+* [Step 1.6: Additional taint steps](#step-16-additional-taint-steps)
+* [Step 1.7: Adding taint steps through constructors](#step-17-adding-taint-steps-through-constructors)
+* [Step 1.8: Finish line](#step-18-finish-line)
+* [Step 2: Another issue](#step-2-another-issue)
+* [Step 3: Errors and exceptions](#step-3-errors-and-exceptions)
+* [Step 4: Exploit and remediation](#step-4-exploit-and-remediation)
+* [Step 4.1: PoC](#step-41-poc)
+* [Step 4.2: Remediation](#step-42-remediation)
 
 ## TaintTracking Configuration for Netflix Titus
 I've been wanting to look into the power of TaintTracking in CodeQL for some time and this CTF is perfect for learning and practicing against a real life target. The challenge takes you from setting up flow paths to fully customizing them when tracking the vulnerabilities and puts the cherry on top with an interesting Java EL injection.
 
 Let's CodeQL and chill!
 
-## Step 1.1: Setting up our source
+## Step 1.1: Setting up our sources
 We are setting the source to be the first parameter of `ConstraintValidator.isValid()`. We start by modeling a QL class to filter Java classes that implement javax.validation.ConstraintValidator:
 
 ```java
