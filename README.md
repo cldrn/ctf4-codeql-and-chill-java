@@ -114,6 +114,9 @@ where cfg.hasFlowPath(source, sink)
 select sink, source, sink, "Custom constraint error message contains unsanitized user data"
 
 ```
+
+Unfortunately, this was not enough to catch our vulnerabilities. Let's keep trying.
+
 ## Step 1.4: Partial flowing
 For this step, we need to use partial flows to detect where the flows stops being tracked. This is very useful for debugging as flows don't propagate through getters/setters and other methods.
 
