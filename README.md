@@ -421,6 +421,18 @@ The response clearly shows that `CTF-AND-CHILL-4` is there!
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [CTF-AND-CHILL-4]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}, {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}"}
 ```
+
+![](img/4.PNG)
 ## Step 4.2:
 
+```
+import java
 
+from Method m, MethodAccess ma
+where 
+  m.getName()="messageInterpolator" 
+  and ma.getMethod() = m
+  and ma.getArgument(0).getType().getName() = "SpELMessageInterpolator"
+select m, ma, ma.getArgument(0), ma.getArgument(0).getType(), ma.getEnclosingCallable()
+```
+![](img/4-2.PNG)
