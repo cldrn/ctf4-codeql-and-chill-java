@@ -432,7 +432,7 @@ And we can finally confirm the RCE!!!
 ## Step 4.2: Remediation
 
 ![](img/4-1.PNG)
-Now, from the remediation techniques discussed in the [original advisory](https://securitylab.github.com/advisories/GHSL-2020-028-netflix-titus/), let's find cases that disable the Java EL interpolation and only use `ParameterMessageInterpolator`. 
+Now, from the remediation techniques discussed in the [original advisory](https://securitylab.github.com/advisories/GHSL-2020-028-netflix-titus/), let's find cases that set the messageInterpolator function to any other value than `ParameterMessageInterpolator`, hence, giving us possible points where EL interpolation could be enabled:
 ```
 import java
 
@@ -440,7 +440,7 @@ from Method m, MethodAccess ma
 where 
   m.getName()="messageInterpolator" 
   and ma.getMethod() = m
-  and ma.getArgument(0).getType().getName() = "SpELMessageInterpolator"
+  and not(ma.getArgument(0).getType().getName() = "ParameterMessageInterpolator")
 select m, ma, ma.getArgument(0), ma.getArgument(0).getType(), ma.getEnclosingCallable()
 ```
 ![](img/4.2.PNG)
