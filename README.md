@@ -430,8 +430,10 @@ And we can finally confirm the RCE!!!
 ![](img/4.PNG)
 
 ## Step 4.2: Remediation
+After downloading the latest snapshot of the project's CodeQL database, we can confirm the vulnerability is no longer there:
 
-![](img/4-1.PNG)
+![](img/4.2-1.PNG)
+
 Now, from the remediation techniques discussed in the [original advisory](https://securitylab.github.com/advisories/GHSL-2020-028-netflix-titus/), let's find cases that set the messageInterpolator function to any other value than `ParameterMessageInterpolator`, hence, giving us possible points where EL interpolation could be enabled:
 ```
 import java
